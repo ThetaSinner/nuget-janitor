@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+import time
 
 import semver
 from semver import VersionInfo
@@ -22,6 +23,15 @@ def list_subdirectories(source_dir):
             if os.path.isdir(os.path.join(source_dir, sub_dir))]
 
 
+def list_packages(version_dir):
+    return [os.path.join(version_dir, f) for f in os.listdir(version_dir)
+            if os.path.isfile(os.path.join(version_dir, f)) and os.path.splitext(f)[1] == '.nupkg']
+
+
+def version_from_version_path(version_path):
+    return VersionInfo.parse(os.path.basename(version_path))
+
+
 def clean_up():
     config = get_config()
     if config is None:
@@ -35,7 +45,7 @@ def clean_up():
 def clean_up_package(package_id, path):
     version_paths = list_subdirectories(path)
 
-    versions = [VersionInfo.parse(os.path.basename(ver)) for ver in version_paths]
+    versions = [version_from_version_path(ver) for ver in version_paths]
     versions.sort()
 
     versions_to_remove = find_pre_releases_with_release(versions)
@@ -44,6 +54,10 @@ def clean_up_package(package_id, path):
     print([str(x) for x in versions_to_remove])
 
     versions_to_remove = find_pre_releases_with_later_release(versions)
+
+    print([str(x) for x in versions_to_remove])
+
+    versions_to_remove = find_old_pre_release_packages(version_paths, 12 * 60 * 60)
 
     print([str(x) for x in versions_to_remove])
 
@@ -89,6 +103,30 @@ def find_pre_releases_with_later_release(versions):
             continue
 
         versions_to_remove.update(versions[index:release_version_index])
+
+    return versions_to_remove
+
+
+def find_old_pre_release_packages(version_paths, max_age_seconds):
+    versions_to_remove = []
+    current_time = time.time()
+
+    for version_path in version_paths:
+        version = version_from_version_path(version_path)
+        if version.prerelease is None:
+            continue
+
+        package_files = list_packages(version_path)
+
+        if len(package_files) != 1:
+            print("Invalid package identified at", version_path,
+                  ". Found an invalid number of package files", package_files)
+            continue
+
+        package_modified_time = os.path.getmtime(package_files[0])
+
+        if (current_time - package_modified_time) > max_age_seconds:
+            versions_to_remove.append(version)
 
     return versions_to_remove
 
