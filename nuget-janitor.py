@@ -38,27 +38,59 @@ def clean_up_package(package_id, path):
     versions = [VersionInfo.parse(os.path.basename(ver)) for ver in version_paths]
     versions.sort()
 
-    print([str(v) for v in versions])
+    versions_to_remove = find_pre_releases_with_release(versions)
 
-    print([v.prerelease for v in versions])
+    print("Time to remove these pretties!")
+    print([str(x) for x in versions_to_remove])
 
-    find_pre_releases_with_releases(versions)
+    versions_to_remove = find_pre_releases_with_later_release(versions)
 
-    pass
+    print([str(x) for x in versions_to_remove])
 
 
-def find_pre_releases_with_releases(versions):
+def find_pre_releases_with_release(versions):
+    versions_to_remove = set()
+
     for index, version in enumerate(versions):
         if version.prerelease is None:
             continue
 
         version_base = VersionInfo(major=version.major, minor=version.minor, patch=version.patch)
 
-        for scanIndex, scanVersion in enumerate(versions, start=index):
-            scan_version_base = VersionInfo(major=scanVersion.major, minor=scanVersion.minor, patch=scanVersion.patch)
+        if version_base not in versions:
+            continue
 
-            cmp = semver.compare(version_base, scan_version_base)
-    pass
+        release_version_index = versions.index(version_base)
+
+        versions_to_remove.update(versions[index:release_version_index])
+
+    return versions_to_remove
+
+
+def find_pre_releases_with_later_release(versions):
+    versions_to_remove = set()
+
+    base_versions = [str(VersionInfo(major=version.major, minor=version.minor, patch=version.patch))
+                     for version in versions]
+
+    for index, version in enumerate(versions):
+        if version.prerelease is None:
+            continue
+
+        version_base = str(VersionInfo(major=version.major, minor=version.minor, patch=version.patch))
+
+        release_version_index = -1
+        for bv_index, bv in enumerate(base_versions):
+            if semver.compare(version_base, bv) == -1 or version_base == str(versions[bv_index]):
+                release_version_index = bv_index
+                break
+
+        if release_version_index == -1:
+            continue
+
+        versions_to_remove.update(versions[index:release_version_index])
+
+    return versions_to_remove
 
 
 if __name__ == '__main__':
