@@ -13,7 +13,15 @@ def get_config():
         return None
 
     parser = argparse.ArgumentParser(description='ding')
-    parser.add_argument('-Source', metavar='S', type=str, help='The package source to tidy', dest='source')
+    parser.add_argument('--source', metavar='S', type=str, help='The package source to tidy', dest='source')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Do a dry run, printing the tidy plan and not taking any action')
+    parser.add_argument('--remove-released', action='store_true',
+                        help='Remove pre-release packages which have an associated release')
+    parser.add_argument('--remove-with-later', action='store_true',
+                        help='Remove pre-release packages which have been superceded by later release version')
+    parser.add_argument('--remove-max-age', metavar='I', type=int,
+                        help='Remove packages older than the given number days', dest='max_age')
 
     return parser.parse_args()
 
@@ -36,30 +44,60 @@ def clean_up():
     config = get_config()
     if config is None:
         print("Invalid config. Try --help")
+        return
+
+    if config.dry_run:
+        print("Performing dry run.")
 
     package_paths = list_subdirectories(config.source)
     for path in package_paths:
-        clean_up_package(os.path.basename(path), path)
+        clean_up_package(config, os.path.basename(path), path)
 
 
-def clean_up_package(package_id, path):
+def clean_up_package(config, package_id, path):
+    if config.dry_run:
+        print("")
+        print("")
+        print("Cleaning up package with id [", package_id, "]")
+
+    remove_versions = set()
+
     version_paths = list_subdirectories(path)
 
     versions = [version_from_version_path(ver) for ver in version_paths]
     versions.sort()
 
-    versions_to_remove = find_pre_releases_with_release(versions)
+    if config.remove_released:
+        versions_to_remove = find_pre_releases_with_release(versions)
+        remove_versions.update(versions_to_remove)
+        if config.dry_run:
+            versions_to_remove = list(versions_to_remove)
+            versions_to_remove.sort()
+            print("Found pre-release packages with an associated release", [str(x) for x in versions_to_remove])
 
-    print("Time to remove these pretties!")
-    print([str(x) for x in versions_to_remove])
+    if config.remove_with_later:
+        versions_to_remove = find_pre_releases_with_later_release(versions)
+        remove_versions.update(versions_to_remove)
+        if config.dry_run:
+            versions_to_remove = list(versions_to_remove)
+            versions_to_remove.sort()
+            print("Found pre-release packages with a later release", [str(x) for x in versions_to_remove])
 
-    versions_to_remove = find_pre_releases_with_later_release(versions)
+    if config.max_age is not None and config.max_age > 0:
+        versions_to_remove = find_old_pre_release_packages(version_paths, config.max_age * 60 * 60)
+        remove_versions.update(versions_to_remove)
+        if config.dry_run:
+            versions_to_remove = list(versions_to_remove)
+            versions_to_remove.sort()
+            print("Found pre-release packages which more than", config.max_age,
+                  "days old.", [str(x) for x in versions_to_remove])
 
-    print([str(x) for x in versions_to_remove])
-
-    versions_to_remove = find_old_pre_release_packages(version_paths, 12 * 60 * 60)
-
-    print([str(x) for x in versions_to_remove])
+    if config.dry_run:
+        versions_to_remove = list(remove_versions)
+        versions_to_remove.sort()
+        print("Would remove package versions", [str(x) for x in versions_to_remove])
+    else:
+        print("Removing packages is not supported yet!")
 
 
 def find_pre_releases_with_release(versions):
