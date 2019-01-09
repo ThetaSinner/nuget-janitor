@@ -46,19 +46,28 @@ def clean_up():
         print("Invalid config. Try --help")
         return
 
+    log_file = None
+
     if config.dry_run:
         print("Performing dry run.")
+    else:
+        log_file = open("nuget-janitor-run-log-{0}.txt".format(time.strftime("%Y%m%d-%H%M%S")), "x")
 
     package_paths = list_subdirectories(config.source)
     for path in package_paths:
-        clean_up_package(config, os.path.basename(path), path)
+        clean_up_package(config, os.path.basename(path), path, log_file)
 
 
-def clean_up_package(config, package_id, path):
+def delete_directories(paths):
+    print("removing paths", paths)
+    pass
+
+
+def clean_up_package(config, package_id, path, log_file):
     if config.dry_run:
         print("")
         print("")
-        print("Cleaning up package with id [", package_id, "]")
+        print("Cleaning package with id [", package_id, "]")
 
     remove_versions = set()
 
@@ -92,12 +101,14 @@ def clean_up_package(config, package_id, path):
             print("Found pre-release packages which more than", config.max_age,
                   "days old.", [str(x) for x in versions_to_remove])
 
+    versions_to_remove = list(remove_versions)
+    versions_to_remove.sort()
     if config.dry_run:
-        versions_to_remove = list(remove_versions)
-        versions_to_remove.sort()
         print("Would remove package versions", [str(x) for x in versions_to_remove])
     else:
-        print("Removing packages is not supported yet!")
+        log_file.write("Cleaning package with id [{0}]".format(package_id))
+        log_file.write("Removing packages with versions {0}".format([str(x) for x in versions_to_remove]))
+        delete_directories([os.path.join(path, str(v)) for v in versions_to_remove])
 
 
 def find_pre_releases_with_release(versions):
