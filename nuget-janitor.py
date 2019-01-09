@@ -84,7 +84,7 @@ def clean_up_package(config, package_id, path):
             print("Found pre-release packages with a later release", [str(x) for x in versions_to_remove])
 
     if config.max_age is not None and config.max_age > 0:
-        versions_to_remove = find_old_pre_release_packages(version_paths, config.max_age * 60 * 60)
+        versions_to_remove = find_old_pre_release_packages(version_paths, config.max_age * 24 * 60 * 60)
         remove_versions.update(versions_to_remove)
         if config.dry_run:
             versions_to_remove = list(versions_to_remove)
