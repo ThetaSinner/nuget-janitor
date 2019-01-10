@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import shutil
 import sys
 import time
 
@@ -40,6 +41,18 @@ def version_from_version_path(version_path):
     return VersionInfo.parse(os.path.basename(version_path))
 
 
+def delete_directories(paths, log_file):
+    any_errors = False
+    for path in paths:
+        try:
+            shutil.rmtree(path)
+        except OSError:
+            log_file.write("Failed to remove [{0}]\n".format(path))
+            any_errors = True
+
+    return any_errors
+
+
 def clean_up():
     config = get_config()
     if config is None:
@@ -56,11 +69,6 @@ def clean_up():
     package_paths = list_subdirectories(config.source)
     for path in package_paths:
         clean_up_package(config, os.path.basename(path), path, log_file)
-
-
-def delete_directories(paths):
-    print("removing paths", paths)
-    pass
 
 
 def clean_up_package(config, package_id, path, log_file):
@@ -106,9 +114,12 @@ def clean_up_package(config, package_id, path, log_file):
     if config.dry_run:
         print("Would remove package versions", [str(x) for x in versions_to_remove])
     else:
-        log_file.write("Cleaning package with id [{0}]".format(package_id))
-        log_file.write("Removing packages with versions {0}".format([str(x) for x in versions_to_remove]))
-        delete_directories([os.path.join(path, str(v)) for v in versions_to_remove])
+        log_file.write("Cleaning package with id [{0}]\n".format(package_id))
+        log_file.write("Removing packages with versions {0}\n".format([str(x) for x in versions_to_remove]))
+        any_errors = delete_directories([os.path.join(path, str(v)) for v in versions_to_remove], log_file)
+        if any_errors:
+            print("There were errors processing package [{0}], please check the log!".format(package_id))
+        log_file.write("\n\n")
 
 
 def find_pre_releases_with_release(versions):
@@ -182,3 +193,4 @@ def find_old_pre_release_packages(version_paths, max_age_seconds):
 
 if __name__ == '__main__':
     clean_up()
+    print("All done!")
