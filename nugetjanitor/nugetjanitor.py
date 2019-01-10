@@ -13,7 +13,7 @@ def get_config():
     if len(sys.argv) < 1:
         return None
 
-    parser = argparse.ArgumentParser(description='Helper for cleaning a Nuget package repository on a file share.')
+    parser = argparse.ArgumentParser(description='Helper for cleaning a NuGet package repository on a file share.')
     parser.add_argument('--source', metavar='S', type=str, help='The package source to tidy', dest='source')
     parser.add_argument('--dry-run', action='store_true',
                         help='Do a dry run, printing the tidy plan and not taking any action')
@@ -64,7 +64,7 @@ def clean_up():
     if config.dry_run:
         print("Performing dry run.")
     else:
-        log_file = open("nuget-janitor-run-log-{0}.txt".format(time.strftime("%Y%m%d-%H%M%S")), "x")
+        log_file = open("nugetjanitor-run-log-{0}.txt".format(time.strftime("%Y%m%d-%H%M%S")), "x")
 
     package_paths = list_subdirectories(config.source)
     for path in package_paths:
@@ -189,8 +189,3 @@ def find_old_pre_release_packages(version_paths, max_age_seconds):
             versions_to_remove.append(version)
 
     return versions_to_remove
-
-
-if __name__ == '__main__':
-    clean_up()
-    print("All done!")
