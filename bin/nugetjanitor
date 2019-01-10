@@ -1,4 +1,4 @@
 #!/usr/bin/env python3
-import nugetjanitor
-nugetjanitor.clean_up()
+from nugetjanitor.nugetjanitor import clean_up
+clean_up()
 print("All done!")
