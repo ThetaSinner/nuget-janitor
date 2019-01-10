@@ -55,7 +55,7 @@ def delete_directories(paths, log_file):
 
 def clean_up():
     config = get_config()
-    if config is None:
+    if config is None or config.source is None:
         print("Invalid config. Try --help")
         return
 
@@ -64,7 +64,7 @@ def clean_up():
     if config.dry_run:
         print("Performing dry run.")
     else:
-        log_file = open("nugetjanitor-run-log-{0}.txt".format(time.strftime("%Y%m%d-%H%M%S")), "x")
+        log_file = open("nuget-janitor-run-log-{0}.txt".format(time.strftime("%Y%m%d-%H%M%S")), "x")
 
     package_paths = list_subdirectories(config.source)
     for path in package_paths:
