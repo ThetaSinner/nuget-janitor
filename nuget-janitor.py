@@ -13,7 +13,7 @@ def get_config():
     if len(sys.argv) < 1:
         return None
 
-    parser = argparse.ArgumentParser(description='ding')
+    parser = argparse.ArgumentParser(description='Helper for cleaning a Nuget package repository on a file share.')
     parser.add_argument('--source', metavar='S', type=str, help='The package source to tidy', dest='source')
     parser.add_argument('--dry-run', action='store_true',
                         help='Do a dry run, printing the tidy plan and not taking any action')
