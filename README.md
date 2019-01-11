@@ -1,4 +1,4 @@
-# nuget-janitor
+# NuGet Janitor
 
 Helper for cleaning a NuGet package repository on a file share.
 

@@ -37,8 +37,13 @@ def list_packages(version_dir):
             if os.path.isfile(os.path.join(version_dir, f)) and os.path.splitext(f)[1] == '.nupkg']
 
 
-def version_from_version_path(version_path):
-    return VersionInfo.parse(os.path.basename(version_path))
+def version_from_version_path(version_path, log_file):
+    try:
+        return VersionInfo.parse(os.path.basename(version_path))
+    except ValueError:
+        if log_file:
+            log_file.write("  Invalid version detected [{0}]\n".format(version_path))
+        return None
 
 
 def delete_directories(paths, log_file):
@@ -65,10 +70,16 @@ def clean_up():
         print("Performing dry run.")
     else:
         log_file = open("nuget-janitor-run-log-{0}.txt".format(time.strftime("%Y%m%d-%H%M%S")), "x")
+        log_file.write("Starting cleanup for source [{0}]\n\n".format(config.source))
 
     package_paths = list_subdirectories(config.source)
+    packages_removed = 0
     for path in package_paths:
-        clean_up_package(config, os.path.basename(path), path, log_file)
+        packages_removed += clean_up_package(config, os.path.basename(path), path, log_file)
+
+    if not config.dry_run:
+        log_file.write("Removed [{0}] packages\n".format(packages_removed))
+        log_file.close()
 
 
 def clean_up_package(config, package_id, path, log_file):
@@ -76,12 +87,15 @@ def clean_up_package(config, package_id, path, log_file):
         print("")
         print("")
         print("Cleaning package with id [", package_id, "]")
+    else:
+        log_file.write("Cleaning package with id [{0}]\n".format(package_id))
 
     remove_versions = set()
 
     version_paths = list_subdirectories(path)
 
-    versions = [version_from_version_path(ver) for ver in version_paths]
+    versions = [version_from_version_path(ver, log_file) for ver in version_paths]
+    versions = list(filter(None, versions))
     versions.sort()
 
     if config.remove_released:
@@ -113,13 +127,14 @@ def clean_up_package(config, package_id, path, log_file):
     versions_to_remove.sort()
     if config.dry_run:
         print("Would remove package versions", [str(x) for x in versions_to_remove])
+        return 0
     else:
-        log_file.write("Cleaning package with id [{0}]\n".format(package_id))
         log_file.write("Removing packages with versions {0}\n".format([str(x) for x in versions_to_remove]))
         any_errors = delete_directories([os.path.join(path, str(v)) for v in versions_to_remove], log_file)
         if any_errors:
             print("There were errors processing package [{0}], please check the log!".format(package_id))
         log_file.write("\n\n")
+        return len(versions_to_remove)
 
 
 def find_pre_releases_with_release(versions):
@@ -172,8 +187,8 @@ def find_old_pre_release_packages(version_paths, max_age_seconds):
     current_time = time.time()
 
     for version_path in version_paths:
-        version = version_from_version_path(version_path)
-        if version.prerelease is None:
+        version = version_from_version_path(version_path, None)
+        if version is None or version.prerelease is None:
             continue
 
         package_files = list_packages(version_path)
